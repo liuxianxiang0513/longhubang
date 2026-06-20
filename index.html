@@ -481,7 +481,9 @@ function showToast(msg) {
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
+// 首次拉取 + 每5分钟自动刷新
 fetchData();
+setInterval(fetchData, 5 * 60 * 1000);
 </script>
 </body>
 </html>
