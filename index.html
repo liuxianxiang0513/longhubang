@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>龙虎榜 · 游资买卖一览</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: linear-gradient(160deg, #fff0f3 0%, #ffe0e6 30%, #ffd6e0 60%, #fce4ec 100%);
+  background-attachment: fixed;
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", sans-serif;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px; min-height: 100vh;
+}
+body::before {
+  content: "🌸 🌸"; position: fixed; top: 20px; right: 40px;
+  font-size: 36px; opacity: 0.3; pointer-events: none; z-index: 0;
+}
+body::after {
+  content: "🌸"; position: fixed; bottom: 60px; left: 30px;
+  font-size: 48px; opacity: 0.2; pointer-events: none; z-index: 0;
+}
+
+/* ===== 主容器 ===== */
+#export-container {
+  width: 100%; max-width: 960px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(255,150,170,0.25), 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden; position: relative; z-index: 1;
+}
+
+/* ===== 标题栏 ===== */
+.header {
+  background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 40%, #f48fb1 100%);
+  padding: 24px 28px 18px;
+  display: flex; align-items: center; gap: 12px;
+  position: relative; overflow: hidden;
+}
+.header::after {
+  content: "🌸"; position: absolute; right: -20px; top: -25px;
+  font-size: 90px; opacity: 0.2; pointer-events: none;
+}
+.header-icon { font-size: 42px; position: relative; z-index: 1; }
+.header-title {
+  font-size: 38px; font-weight: 900; color: #4a0024;
+  letter-spacing: 4px; position: relative; z-index: 1;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.4);
+}
+.header-sub {
+  font-size: 13px; color: #ad1457; background: rgba(255,255,255,0.65);
+  padding: 4px 12px; border-radius: 10px; font-weight: 700;
+  position: relative; z-index: 1; margin-left: 4px;
+}
+
+/* ===== 信息栏 ===== */
+.info-bar {
+  padding: 14px 28px 8px; display: flex; align-items: center; gap: 24px;
+  flex-wrap: wrap;
+}
+.date-tag {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; color: #ad1457; font-weight: 600;
+}
+.date-dot { width: 8px; height: 8px; border-radius: 50%; background: #f48fb1; }
+.overview { display: flex; gap: 22px; margin-left: auto; }
+.ov-item { text-align: center; }
+.ov-val { font-size: 17px; font-weight: 800; }
+.ov-val.buy { color: #c62828; }
+.ov-val.sell { color: #2e7d32; }
+.ov-val.mid { color: #6a1b9a; }
+.ov-lbl { font-size: 11px; color: #9e9e9e; margin-top: 1px; }
+
+/* ===== 游资卡片 ===== */
+.trader-card {
+  margin: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid #f8bbd0;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(255,150,170,0.08);
+}
+
+/* 游资头部 */
+.trader-head {
+  padding: 12px 20px;
+  background: linear-gradient(90deg, #fce4ec, #fff);
+  border-bottom: 1px solid #f8bbd0;
+  display: flex; align-items: center; gap: 10px;
+}
+.trader-rank {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900;
+}
+.trader-rank.g1 { background: linear-gradient(135deg,#ffd54f,#ffb300); color:#4e342e; box-shadow:0 2px 6px rgba(255,179,0,0.4); }
+.trader-rank.g2 { background: linear-gradient(135deg,#cfd8dc,#90a4ae); color:#263238; }
+.trader-rank.g3 { background: linear-gradient(135deg,#ffcc80,#f57c00); color:#fff; }
+.trader-rank.gn { background: #f5f5f5; color:#9e9e9e; }
+.trader-name { font-size: 17px; font-weight: 800; color: #212121; }
+.trader-sub { font-size: 11px; color: #9e9e9e; margin-top: 2px; }
+.trader-summary { margin-left: auto; text-align: right; }
+.trader-sum-row { display: flex; gap: 12px; }
+.trader-sum-item { text-align: center; }
+.trader-sum-val { font-size: 15px; font-weight: 800; }
+.trader-sum-val.buy { color: #c62828; }
+.trader-sum-val.sell { color: #2e7d32; }
+.trader-sum-lbl { font-size: 10px; color: #bdbdbd; }
+
+/* ===== 三栏布局 ===== */
+.trader-body {
+  display: flex;
+  min-height: 0;
+}
+.col-buy, .col-sell {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.col-divider {
+  width: 1px;
+  background: #f8bbd0;
+  flex-shrink: 0;
+}
+
+/* 子表头 */
+.sub-header {
+  padding: 8px 14px; font-weight: 700; font-size: 13px;
+  border-bottom: 1px solid #fce4ec;
+  display: flex; align-items: center; gap: 5px;
+}
+.sub-header.buy { color: #c62828; background: #fff5f5; }
+.sub-header.sell { color: #2e7d32; background: #f1f8e9; }
+.sub-header .dot { width: 5px; height: 5px; border-radius: 50%; }
+.sub-header .count { font-size: 11px; font-weight: 400; opacity: 0.5; margin-left: auto; }
+
+/* 表格 */
+.table-mini { width: 100%; border-collapse: collapse; }
+.table-mini thead th {
+  font-weight: 600; color: #bdbdbd; white-space: nowrap;
+  border-bottom: 1px solid #f5f5f5;
+  padding: 6px 8px; text-align: center; font-size: 11px;
+}
+.table-mini thead th:first-child { padding-left: 14px; text-align: left; }
+.table-mini thead th:last-child { padding-right: 14px; }
+.table-mini tbody td {
+  text-align: center; white-space: nowrap;
+  border-bottom: 1px solid #fafafa;
+  padding: 6px 8px; font-size: 12px;
+}
+.table-mini tbody td:first-child { padding-left: 14px; text-align: left; }
+.table-mini tbody td:last-child { padding-right: 14px; }
+.table-mini tbody tr:last-child td { border-bottom: none; }
+.table-mini tbody tr:hover { background: #fafafa; }
+
+.td-name { color: #212121; font-weight: 700; }
+.td-code { color: #bdbdbd; margin-left: 4px; font-size: 10px; }
+.td-price { color: #757575; }
+.td-change { font-weight: 700; }
+.td-change.up { color: #c62828; }
+.td-change.down { color: #2e7d32; }
+.td-amount { font-weight: 700; }
+.td-amount.buy { color: #c62828; }
+.td-amount.sell { color: #2e7d32; }
+
+/* 空状态 */
+.empty-col {
+  padding: 20px 14px; text-align: center; color: #ccc; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex: 1 1 0; min-width: 0;
+}
+
+/* 动态密度 */
+.trader-card.dense .trader-head { padding: 8px 14px; }
+.trader-card.dense .trader-name { font-size: 14px; }
+.trader-card.dense .trader-rank { width: 24px; height: 24px; font-size: 12px; }
+.trader-card.dense .sub-header { padding: 5px 10px; font-size: 11px; }
+.trader-card.dense .table-mini thead th { padding: 4px 6px; font-size: 10px; }
+.trader-card.dense .table-mini tbody td { padding: 4px 6px; font-size: 11px; }
+.trader-card.dense .td-name { font-size: 12px; }
+.trader-card.dense .td-code { font-size: 9px; }
+.trader-card.dense .trader-sum-val { font-size: 13px; }
+
+.trader-card.sparse .trader-head { padding: 16px 24px; }
+.trader-card.sparse .trader-name { font-size: 20px; }
+.trader-card.sparse .trader-rank { width: 34px; height: 34px; font-size: 16px; }
+.trader-card.sparse .sub-header { padding: 12px 18px; font-size: 15px; }
+.trader-card.sparse .table-mini thead th { padding: 10px 12px; font-size: 13px; }
+.trader-card.sparse .table-mini tbody td { padding: 10px 12px; font-size: 14px; }
+.trader-card.sparse .td-name { font-size: 15px; }
+.trader-card.sparse .td-code { font-size: 12px; }
+.trader-card.sparse .trader-sum-val { font-size: 18px; }
+
+/* 底部 */
+.footer {
+  padding: 16px; text-align: center; color: #bdbdbd; font-size: 11px;
+  border-top: 1px solid #fce4ec;
+}
+
+/* 按钮 */
+.btn-row { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.btn {
+  padding: 12px 30px; border: none; border-radius: 8px; cursor: pointer;
+  font-size: 15px; font-weight: 700; transition: all 0.2s;
+}
+.btn-export { background: linear-gradient(135deg,#f48fb1,#ec407a); color: #fff; box-shadow: 0 4px 14px rgba(236,64,122,0.35); }
+.btn-export:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(236,64,122,0.45); }
+.btn-refresh { background: #fff; color: #ad1457; border: 1px solid #f8bbd0; }
+.btn-refresh:hover { background: #fce4ec; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  background: #fff; color: #333; padding: 12px 26px; border-radius: 10px;
+  font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.toast.show { opacity: 1; }
+.loading-wrap { padding: 50px; text-align: center; color: #bdbdbd; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="export-container">
+  <!-- 标题 -->
+  <div class="header">
+    <span class="header-icon">🐲</span>
+    <span class="header-title">龙虎榜</span>
+    <span class="header-sub">游资买卖</span>
+  </div>
+
+  <div class="info-bar">
+    <span class="date-tag">
+      <span class="date-dot"></span>
+      <span id="top-date">加载中...</span>
+    </span>
+    <div class="overview">
+      <div class="ov-item">
+        <div class="ov-val buy" id="ov-total-buy">--</div>
+        <div class="ov-lbl">总净买入</div>
+      </div>
+      <div class="ov-item">
+        <div class="ov-val sell" id="ov-total-sell">--</div>
+        <div class="ov-lbl">总净卖出</div>
+      </div>
+      <div class="ov-item">
+        <div class="ov-val mid" id="ov-traders">--</div>
+        <div class="ov-lbl">上榜游资</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="trader-list" style="padding:4px 0 16px;">
+    <div class="loading-wrap">🌸 正在拉取龙虎榜数据...</div>
+  </div>
+
+  <div class="footer">数据来源：东方财富龙虎榜 · RPT_DAILY_BILLBOARDTRADINGDETAILS</div>
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-refresh" onclick="fetchData()">🔄 刷新数据</button>
+  <button class="btn btn-export" id="btn-export" onclick="exportImage()">📸 一键导出图片</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function fmtAmount(wan) {
+  if (wan == null || isNaN(wan)) return '--';
+  let v = Number(wan), abs = Math.abs(v), sign = v < 0 ? '-' : '';
+  if (abs >= 10000) return sign + (abs / 10000).toFixed(2) + 'Y';
+  return sign + abs.toFixed(2) + 'W';
+}
+function fmtPrice(p) { return (p != null && !isNaN(p)) ? Number(p).toFixed(2) + ' 元' : '--'; }
+function fmtPct(p) {
+  if (p == null || isNaN(p)) return '--';
+  let v = Number(p); return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+}
+function fmtDate(d) {
+  if (!d) return '--'; let s = String(d);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
+function groupByTrader(list) {
+  const map = new Map();
+  list.forEach(d => {
+    const name = d.TRADING_ORG_NAME || '未知游资';
+    if (!map.has(name)) map.set(name, []);
+    map.get(name).push(d);
+  });
+  return [...map.entries()]
+    .map(([name, stocks]) => {
+      const buy = stocks.filter(s => (s.NET_BUY_AMT || 0) > 0);
+      const sell = stocks.filter(s => (s.NET_BUY_AMT || 0) < 0);
+      const totalBuy = buy.reduce((s,d)=>s+(d.NET_BUY_AMT||0),0);
+      const totalSell = sell.reduce((s,d)=>s+Math.abs(d.NET_BUY_AMT||0),0);
+      return { name, stocks, buy, sell, totalBuy, totalSell, net: totalBuy - totalSell };
+    })
+    .filter(g => g.stocks.length > 0)
+    .sort((a,b) => b.totalBuy - a.totalBuy)
+    .slice(0, 15);
+}
+
+function rankClass(i) {
+  if (i===0) return 'g1'; if (i===1) return 'g2'; if (i===2) return 'g3'; return 'gn';
+}
+
+function densityClass(count) {
+  if (count <= 3) return 'sparse';
+  if (count >= 8) return 'dense';
+  return '';
+}
+
+async function fetchData() {
+  const c = document.getElementById('trader-list');
+  c.innerHTML = '<div class="loading-wrap">🌸 正在拉取数据...</div>';
+  try {
+    const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?' +
+      'reportName=RPT_DAILY_BILLBOARDTRADINGDETAILS' +
+      '&columns=ALL&sortColumns=NET_BUY_AMT&sortTypes=-1' +
+      '&pageSize=80&pageNumber=1&source=WEB&client=WEB';
+    const resp = await fetch(url, { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    if (!json.success || !json.result?.data) throw new Error('无数据');
+    let list = json.result.data.filter(d => d.NET_BUY_AMT !== 0);
+    if (list.length===0) throw new Error('暂无买卖数据');
+    renderAll(list);
+  } catch(e) { console.warn('API不可用:', e.message); useMockData(); }
+}
+
+function useMockData() {
+  const mock = [
+    {SECURITY_CODE:'300750',SECURITY_NAME_ABBR:'宁德时代',CLOSE_PRICE:218.45,CHANGE_RATE:3.27,NET_BUY_AMT:18500.50,TRADING_ORG_NAME:'方新侠',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600519',SECURITY_NAME_ABBR:'贵州茅台',CLOSE_PRICE:1682.00,CHANGE_RATE:1.85,NET_BUY_AMT:12300.80,TRADING_ORG_NAME:'方新侠',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'300274',SECURITY_NAME_ABBR:'阳光电源',CLOSE_PRICE:98.50,CHANGE_RATE:-1.23,NET_BUY_AMT:7600.20,TRADING_ORG_NAME:'方新侠',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'601899',SECURITY_NAME_ABBR:'紫金矿业',CLOSE_PRICE:18.92,CHANGE_RATE:-1.80,NET_BUY_AMT:-3200.50,TRADING_ORG_NAME:'方新侠',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600036',SECURITY_NAME_ABBR:'招商银行',CLOSE_PRICE:38.92,CHANGE_RATE:-0.52,NET_BUY_AMT:-1800.00,TRADING_ORG_NAME:'方新侠',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'002594',SECURITY_NAME_ABBR:'比亚迪',CLOSE_PRICE:268.30,CHANGE_RATE:5.12,NET_BUY_AMT:9800.00,TRADING_ORG_NAME:'炒股养家',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'688981',SECURITY_NAME_ABBR:'中芯国际',CLOSE_PRICE:56.20,CHANGE_RATE:7.33,NET_BUY_AMT:4300.60,TRADING_ORG_NAME:'炒股养家',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600809',SECURITY_NAME_ABBR:'山西汾酒',CLOSE_PRICE:218.00,CHANGE_RATE:-2.11,NET_BUY_AMT:2500.00,TRADING_ORG_NAME:'炒股养家',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'002475',SECURITY_NAME_ABBR:'立讯精密',CLOSE_PRICE:38.60,CHANGE_RATE:-0.89,NET_BUY_AMT:-2100.00,TRADING_ORG_NAME:'炒股养家',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'601012',SECURITY_NAME_ABBR:'隆基绿能',CLOSE_PRICE:22.18,CHANGE_RATE:4.56,NET_BUY_AMT:6200.00,TRADING_ORG_NAME:'作手新一',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'000858',SECURITY_NAME_ABBR:'五粮液',CLOSE_PRICE:152.80,CHANGE_RATE:-0.45,NET_BUY_AMT:4800.00,TRADING_ORG_NAME:'作手新一',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'300124',SECURITY_NAME_ABBR:'汇川技术',CLOSE_PRICE:62.30,CHANGE_RATE:-0.78,NET_BUY_AMT:-3500.00,TRADING_ORG_NAME:'作手新一',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'300014',SECURITY_NAME_ABBR:'亿纬锂能',CLOSE_PRICE:45.20,CHANGE_RATE:-2.33,NET_BUY_AMT:-1500.00,TRADING_ORG_NAME:'作手新一',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'002415',SECURITY_NAME_ABBR:'海康威视',CLOSE_PRICE:34.56,CHANGE_RATE:2.18,NET_BUY_AMT:3900.00,TRADING_ORG_NAME:'赵老哥',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'000725',SECURITY_NAME_ABBR:'京东方A',CLOSE_PRICE:4.56,CHANGE_RATE:1.33,NET_BUY_AMT:2800.00,TRADING_ORG_NAME:'赵老哥',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600703',SECURITY_NAME_ABBR:'三安光电',CLOSE_PRICE:14.20,CHANGE_RATE:-3.45,NET_BUY_AMT:-1200.00,TRADING_ORG_NAME:'赵老哥',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'000333',SECURITY_NAME_ABBR:'美的集团',CLOSE_PRICE:72.15,CHANGE_RATE:1.52,NET_BUY_AMT:2800.00,TRADING_ORG_NAME:'章盟主',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'603259',SECURITY_NAME_ABBR:'药明康德',CLOSE_PRICE:62.80,CHANGE_RATE:3.89,NET_BUY_AMT:2200.00,TRADING_ORG_NAME:'章盟主',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600887',SECURITY_NAME_ABBR:'伊利股份',CLOSE_PRICE:28.60,CHANGE_RATE:-0.66,NET_BUY_AMT:-900.00,TRADING_ORG_NAME:'章盟主',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'300750',SECURITY_NAME_ABBR:'宁德时代',CLOSE_PRICE:218.45,CHANGE_RATE:3.27,NET_BUY_AMT:-560.00,TRADING_ORG_NAME:'章盟主',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'600030',SECURITY_NAME_ABBR:'中信证券',CLOSE_PRICE:22.30,CHANGE_RATE:2.80,NET_BUY_AMT:5600.00,TRADING_ORG_NAME:'小鳄鱼',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'601688',SECURITY_NAME_ABBR:'华泰证券',CLOSE_PRICE:15.80,CHANGE_RATE:1.90,NET_BUY_AMT:3100.00,TRADING_ORG_NAME:'小鳄鱼',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'000776',SECURITY_NAME_ABBR:'广发证券',CLOSE_PRICE:14.50,CHANGE_RATE:-1.20,NET_BUY_AMT:-2800.00,TRADING_ORG_NAME:'小鳄鱼',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'002714',SECURITY_NAME_ABBR:'牧原股份',CLOSE_PRICE:42.50,CHANGE_RATE:1.68,NET_BUY_AMT:4500.00,TRADING_ORG_NAME:'欢乐海岸',TRADE_DATE:'2026-06-19'},
+    {SECURITY_CODE:'300498',SECURITY_NAME_ABBR:'温氏股份',CLOSE_PRICE:18.20,CHANGE_RATE:-0.89,NET_BUY_AMT:-2100.00,TRADING_ORG_NAME:'欢乐海岸',TRADE_DATE:'2026-06-19'},
+  ];
+  renderAll(mock);
+  document.getElementById('top-date').textContent = '2026-06-19（模拟）';
+  showToast('⚠️ 实时API暂不可用，显示模拟数据');
+}
+
+function buildTable(rows, type) {
+  if (rows.length === 0) return '';
+  const label = type === 'buy' ? '📈 买入' : '📉 卖出';
+  const cls = type;
+  const amtLabel = type === 'buy' ? '净买入额' : '净卖出额';
+  return `
+  <div class="sub-header ${cls}">
+    <span class="dot" style="background:${type==='buy'?'#c62828':'#2e7d32'}"></span>${label}
+    <span class="count">${rows.length}只</span>
+  </div>
+  <table class="table-mini">
+    <thead><tr><th style="text-align:left;padding-left:14px">股票</th><th>现价</th><th>涨跌</th><th>${amtLabel}</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderAll(list) {
+  const groups = groupByTrader(list);
+  const grandBuy = groups.reduce((s,g)=>s+g.totalBuy,0);
+  const grandSell = groups.reduce((s,g)=>s+g.totalSell,0);
+
+  document.getElementById('ov-total-buy').textContent = fmtAmount(grandBuy);
+  document.getElementById('ov-total-sell').textContent = fmtAmount(grandSell);
+  document.getElementById('ov-traders').textContent = groups.length + '家';
+  document.getElementById('top-date').textContent = fmtDate(list[0]?.TRADE_DATE) || '最近';
+
+  const container = document.getElementById('trader-list');
+  container.innerHTML = '';
+
+  groups.forEach((group, gi) => {
+    const card = document.createElement('div');
+    const total = group.stocks.length;
+    const dc = densityClass(total);
+    card.className = 'trader-card' + (dc ? ' ' + dc : '');
+
+    let buyRows = '';
+    group.buy.forEach(s => {
+      const up = s.CHANGE_RATE >= 0;
+      buyRows += `<tr>
+        <td><span class="td-name">${s.SECURITY_NAME_ABBR}</span><span class="td-code">${s.SECURITY_CODE}</span></td>
+        <td class="td-price">${fmtPrice(s.CLOSE_PRICE)}</td>
+        <td class="td-change ${up?'up':'down'}">${fmtPct(s.CHANGE_RATE)}</td>
+        <td class="td-amount buy">${fmtAmount(s.NET_BUY_AMT)}</td>
+      </tr>`;
+    });
+
+    let sellRows = '';
+    group.sell.forEach(s => {
+      const up = s.CHANGE_RATE >= 0;
+      sellRows += `<tr>
+        <td><span class="td-name">${s.SECURITY_NAME_ABBR}</span><span class="td-code">${s.SECURITY_CODE}</span></td>
+        <td class="td-price">${fmtPrice(s.CLOSE_PRICE)}</td>
+        <td class="td-change ${up?'up':'down'}">${fmtPct(s.CHANGE_RATE)}</td>
+        <td class="td-amount sell">${fmtAmount(s.NET_BUY_AMT)}</td>
+      </tr>`;
+    });
+
+    const buyTable = buildTable(buyRows, 'buy');
+    const sellTable = buildTable(sellRows, 'sell');
+
+    card.innerHTML = `
+    <!-- 游资头部 -->
+    <div class="trader-head">
+      <div class="trader-rank ${rankClass(gi)}">${gi+1}</div>
+      <div>
+        <div class="trader-name">${group.name}</div>
+        <div class="trader-sub">${total}只个股 · 净${group.net>=0?'买入':'卖出'} ${fmtAmount(Math.abs(group.net))}</div>
+      </div>
+      <div class="trader-summary">
+        <div class="trader-sum-row">
+          <div class="trader-sum-item">
+            <div class="trader-sum-val buy">${fmtAmount(group.totalBuy)}</div>
+            <div class="trader-sum-lbl">净买入</div>
+          </div>
+          ${group.sell.length>0 ? `
+          <div class="trader-sum-item">
+            <div class="trader-sum-val sell">${fmtAmount(group.totalSell)}</div>
+            <div class="trader-sum-lbl">净卖出</div>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- 三栏：买 | 卖 -->
+    <div class="trader-body">
+      ${buyTable ? `<div class="col-buy">${buyTable}</div>` : `<div class="empty-col">— 无买入 —</div>`}
+      ${buyTable && sellTable ? `<div class="col-divider"></div>` : ''}
+      ${sellTable ? `<div class="col-sell">${sellTable}</div>` : `<div class="empty-col">— 无卖出 —</div>`}
+    </div>`;
+
+    container.appendChild(card);
+  });
+}
+
+async function exportImage() {
+  const btn = document.getElementById('btn-export');
+  btn.disabled = true; btn.textContent = '⏳ 生成中...';
+  try {
+    const el = document.getElementById('export-container');
+    const canvas = await html2canvas(el, {
+      backgroundColor: null, scale: 2, useCORS: true, logging: false,
+    });
+    const link = document.createElement('a');
+    link.download = '龙虎榜_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ 图片已导出！');
+  } catch(e) { showToast('❌ 导出失败: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='📸 一键导出图片'; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+fetchData();
+</script>
+</body>
+</html>
