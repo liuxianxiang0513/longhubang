@@ -430,6 +430,15 @@ function render(data) {
 
 // 加载数据
 async function loadData() {
+  // 检测是否在本地运行
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    document.getElementById('status-msg').className = 'status-msg error';
+    document.getElementById('status-msg').innerHTML = 
+      '⚠️ 请本地运行查看实时数据<br><span class="server-info">在项目目录执行 <code>python lhb_server.py</code>，然后访问 <code>http://localhost:8765</code></span>';
+    document.getElementById('date-label').textContent = '📅 GitHub Pages · 静态预览';
+    return;
+  }
+  
   document.getElementById('status-msg').className = 'status-msg loading';
   document.getElementById('status-msg').textContent = '🌸 正在获取龙虎榜数据...';
   document.getElementById('status-msg').style.display = 'block';
